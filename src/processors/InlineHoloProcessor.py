@@ -32,6 +32,7 @@ class InlineHoloProcessor(ImageProcessorThread):
     autoFocusFlag = False
     invert = False
     showPhase = False
+    roi = None
     
     def __init__(self, inBufferSize, outBufferSize, **kwargs):
         
@@ -53,7 +54,8 @@ class InlineHoloProcessor(ImageProcessorThread):
                     if self.invert is True:
                         outputFrame = np.max(outputFrame) - outputFrame
                 else:
-                    outputFrame = pyh.phase(outputFrame)
+                    outputFrame = pyh.phase(pyh.relative_phase_self(outputFrame, self.roi)) / (2 * 3.14) * 255
+           
 
             return outputFrame
         return inputFrame

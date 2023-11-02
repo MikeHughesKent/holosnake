@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 """
-HoloSnAkE : Inline Holographci Microscopy GUI
+HoloSnake : Inline Holographic Microscopy GUI
+
+This GUI is built on CAS-GUI which contains most of the functionality. This
+file sets up the specific aspects of the GUI needed for inline holography.
 
 @author: Mike Hughes, Applied Optics Group, University of Kent
 
@@ -18,11 +21,13 @@ sys.path.append(str(Path('../../cas/src/threads')))
 sys.path.append(str(Path('../../cas/src/threads')))
 sys.path.append(str(Path('processors')))
 
-
 import time
 import numpy as np
 import math
 import pickle
+import matplotlib.pyplot as plt
+import logging
+
 
 from PyQt5 import QtGui, QtCore, QtWidgets
 from PyQt5.QtWidgets import *
@@ -33,30 +38,26 @@ from PyQt5.QtGui import QPainter, QBrush, QPen
 
 
 from PIL import Image
-
-from CAS_GUI_Base import CAS_GUI
-
-
 import cv2 as cv
 
+from CAS_GUI_Base import CAS_GUI
 from ImageAcquisitionThread import ImageAcquisitionThread
 from image_display import ImageDisplay
-
-import matplotlib.pyplot as plt
-#import pyqtgraph as pg
 from cam_control_panel import *
-
 from InlineHoloProcessor import InlineHoloProcessor
-import logging
-
 import pyholoscope
-#logging.disable(logging.CRITICAL)
+
 
 class HoloGUI(CAS_GUI):
     
     AUTHOR = "AOG"
     APP_NAME = "InlineHoloGUI"
+    windowTitle = "Kent Inline Holography"
+    logoFilename = '../res/kent_logo_3.png'
+    iconFilename = '../res/icon.png'
     cuda = False
+    
+    
     if cuda is True:
         try:
             import cupy
@@ -66,6 +67,7 @@ class HoloGUI(CAS_GUI):
             cuda = False
             
     
+    
     def __init__(self,parent=None):
         
         self.sourceFilename = r"..\tests\test_data\usaf1.tif"
@@ -74,33 +76,16 @@ class HoloGUI(CAS_GUI):
         super(HoloGUI, self).__init__(parent)
         
         self.handle_change_show_processing_options(1)
-
         self.exportStackDialog = ExportStackDialog()
         
      
     
     def create_layout(self):
+        """ Overrides default CAS-GUI layout to add additional controls.
+        """
         
-        self.setWindowTitle("Kent Inline Holography")       
-        
-        self.outerLayout = QVBoxLayout()
-
-        self.layout = QHBoxLayout()
-        self.mainDisplayFrame = QVBoxLayout()
-        self.mosaicDisplayFrame = QVBoxLayout()
-        
-        # Create the image display widget which will show the video
-        self.mainDisplay = ImageDisplay(name = "mainDisplay")
-        self.mainDisplay.isStatusBar = True
-        self.mainDisplay.autoScale = True
-        self.mainDisplay.setMinimumWidth(500)        
-          
-        # Add the camera display to a parent layout
-        self.mainDisplayFrame.addWidget(self.mainDisplay)
-                              
-        # Create the panel with main menu and camera control options (e.g. exposure)
-        self.camControlPanel = init_cam_control_panel(self, self.controlPanelSize)   
-        
+        super().create_layout()       
+               
         # Add custom buttons to main menu       
         self.mainMenuLayout.addItem(verticalSpacer:= QtWidgets.QSpacerItem(20, 10, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Minimum))
         self.mainMenuBackBtn = QPushButton('Acquire Background')
@@ -115,6 +100,7 @@ class HoloGUI(CAS_GUI):
         self.mainMenuLayout.addWidget(self.mainMenuSaveBackBtn)
         self.mainMenuSaveBackBtn.clicked.connect(self.save_background_click)
         
+        
         # Create the processing panels
         self.holoPanel = self.init_inline_holo_process_panel(self.controlPanelSize)
         self.refocusPanel = self.init_refocus_panel(self.controlPanelSize)
@@ -127,42 +113,34 @@ class HoloGUI(CAS_GUI):
         visLayout.addWidget(self.showProcessingOptionsCheck)
         visLayout.addStretch()        
         
-        # Assemble the layout
-        self.leftControl = QVBoxLayout()
-        self.leftControl.addWidget(self.camControlPanel)
-        self.leftControl.addWidget(self.refocusPanel)
-        
-        self.layout.addLayout(self.mainDisplayFrame)
-        self.layout.addLayout(self.leftControl)
-        self.layout.addWidget(self.holoPanel)
-        self.leftControl.addWidget(self.visibilityControl)
-
-        widget = QWidget()
-        widget.setLayout(self.outerLayout)
-        
-        self.outerLayout.addLayout(self.layout)
-        self.logobar = QHBoxLayout()
-        
-        kentlogo = QLabel()
-        pixmap = QPixmap('../res/kent_logo_2.png')
-        kentlogo.setPixmap(pixmap) #.scaled(200, 405, QtCore.Qt.KeepAspectRatio))
-        
-        self.logobar.addWidget(kentlogo)
-        
-        self.outerLayout.addLayout(self.logobar)
-
-        # Set the central widget of the Window. Widget will expand
-        # to take up all the space in the window by default.
-        self.setCentralWidget(widget)
        
-        self.setWindowIcon(QtGui.QIcon('../res/icon.png'))
+        # Add panels
+        self.topLayout.addWidget(self.refocusPanel)
+        self.topLayout.addWidget(self.visibilityControl)
+        self.layout.addWidget(self.holoPanel)
 
-        # Set the central widget of the Window. Widget will expand
-        # to take up all the space in the window by default.
-        self.setCentralWidget(widget)
+        
+        # Create a long slider for focusing
+        self.longFocusWidget = QWidget()
+        self.longFocusWidgetLayout = QHBoxLayout()
+        self.longFocusWidget.setLayout(self.longFocusWidgetLayout)
+        self.holoLongDepthSlider = QSlider(QtCore.Qt.Horizontal, objectName = 'longHoloDepthSlider')
+
+        self.longFocusWidgetLayout.addWidget(QLabel("Refocus:"))
+        self.longFocusWidgetLayout.addWidget( self.holoLongDepthSlider)
+        self.mainDisplayFrame.addWidget(self.longFocusWidget)        
+        
+        self.holoLongDepthSlider.valueChanged[int].connect(self.handle_long_depth_slider)       
+        self.holoLongDepthSlider.setTickPosition(QSlider.TicksBelow)
+        self.holoLongDepthSlider.setTickInterval(10)
+        self.holoLongDepthSlider.setMaximum(5000)
+        
         
         
     def create_processors(self):
+        """ Create the holographic processing thread.
+        """
+        
         if self.imageThread is not None:
             inputQueue = self.imageThread.get_image_queue()
         else:
@@ -173,11 +151,12 @@ class HoloGUI(CAS_GUI):
             if self.imageProcessor is not None:
                 self.imageProcessor.start()
         
-        #self.imageProcessor = BundleProcessorHandler(10,10, inputQueue = self.imageThread.get_image_queue())
         self.handle_changed_processing()
         
         
     def init_refocus_panel(self, panelSize):
+        """ Create the PyQt panel with refocusing options.
+        """
         
         panel = QWidget()
         panel.setLayout(topLayout:=QVBoxLayout())
@@ -218,7 +197,9 @@ class HoloGUI(CAS_GUI):
         return panel          
     
 
-    def init_inline_holo_process_panel(self, panelSize):        
+    def init_inline_holo_process_panel(self, panelSize):     
+        """ Create the PyQt panel with holography options.
+        """
         
         self.holoWavelengthInput = QDoubleSpinBox(objectName='holoWavelengthInput')
         self.holoWavelengthInput.setMaximum(10**6)
@@ -231,7 +212,9 @@ class HoloGUI(CAS_GUI):
             
         self.holoRefocusCheck = QCheckBox("Refocus", objectName='holoRefocusCheck')
         self.holoBackgroundCheck = QCheckBox("Background", objectName='holoBackgroundCheck')
-        self.holoNormaliseCheck = QCheckBox("Normalise", objectName='holoNormaliseheck')
+        self.holoNormaliseCheck = QCheckBox("Normalise", objectName='holoNormaliseCheck')
+        self.holoInvertCheck = QCheckBox("Invert", objectName='holoInvertCheck')
+        self.holoShowPhaseCheck = QCheckBox("Show Phase", objectName='holoShowPhaseCheck')
 
         self.holoWindowCombo = QComboBox(objectName='holoWindowCombo')
         self.holoWindowCombo.addItems(['None', 'Circular', 'Rectangular'])
@@ -283,7 +266,8 @@ class HoloGUI(CAS_GUI):
         layout.addWidget(self.holoRefocusCheck)
         layout.addWidget(self.holoBackgroundCheck)
         layout.addWidget(self.holoNormaliseCheck)
-
+        layout.addWidget(self.holoInvertCheck)
+        layout.addWidget(self.holoShowPhaseCheck)
          
         layout.addWidget(QLabel('Window:'))
         layout.addWidget(self.holoWindowCombo)
@@ -315,6 +299,8 @@ class HoloGUI(CAS_GUI):
         self.holoRefocusCheck.stateChanged.connect(self.handle_changed_processing)
         self.holoBackgroundCheck.stateChanged.connect(self.handle_changed_processing)
         self.holoNormaliseCheck.stateChanged.connect(self.handle_changed_processing)
+        self.holoShowPhaseCheck.stateChanged.connect(self.handle_changed_processing)
+        self.holoInvertCheck.stateChanged.connect(self.handle_changed_processing)
 
         self.holoWindowThicknessInput.valueChanged[float].connect(self.handle_changed_processing)
         self.holoWindowCombo.currentIndexChanged[int].connect(self.handle_changed_processing)
@@ -324,59 +310,6 @@ class HoloGUI(CAS_GUI):
         return holoPanel    
 
 
-    def init_inline_holo_sr_panel(self, panelSize):
-        
-        self.srReferencedBtn=QPushButton('Set Reference Frame')
-        self.srShowOffsetCheck = QCheckBox('Show SR Offset', objectName = 'srShowOffsetCheck')
-        self.srAngleInput = QSpinBox(objectName = 'seAngleInput')
-        
-        srPanel = QWidget()
-        srPanel.setLayout(topLayout:=QVBoxLayout())
-        srPanel.setMaximumWidth(panelSize)
-        srPanel.setMinimumWidth(panelSize)        
-        
-        groupBox = QGroupBox("Super Resolution")
-        groupBox.setLayout(layout:=QVBoxLayout())       
-    
-        layout.addWidget(self.srReferencedBtn)                    
-
-        self.srXOffsetLabel = QLabel()
-        self.srYOffsetLabel = QLabel()
-        statusPanel = QWidget()
-        statusPanel.setLayout(statusLayout:=QGridLayout())
-        statusPanel.setMaximumWidth(panelSize)
-        statusPanel.setMinimumWidth(panelSize)
-
-        statusLayout.addWidget(QLabel('X Offset:'),1,0)
-        statusLayout.addWidget(QLabel('Y Offset:'),2,0)
-        
-        statusLayout.addWidget(self.srXOffsetLabel,1,1)
-        statusLayout.addWidget(self.srYOffsetLabel,2,1)
-        
-        layout.addWidget(self.srShowOffsetCheck)
-        layout.addWidget(QLabel('Rot Angle (deg):'))
-        layout.addWidget(self.srAngleInput)
-        layout.addWidget(statusPanel)
-        topLayout.addWidget(groupBox)
-
-        layout.addStretch()
-      
-        self.srReferencedBtn.clicked.connect(self.sr_reference_click)
-        
-        return srPanel        
-    
-
-    def update_image_display(self):
-       
-        if self.currentProcessedImage is not None:
-            self.mainDisplay.set_mono_image(self.currentProcessedImage)
-        else:
-            if self.currentImage is not None:
-                self.mainDisplay.set_mono_image(self.currentImage)
-                   
-            
-    def sr_reference_click(self):
-        self.srReferenceImage = self.currentProcessedImage         
             
     
     def handle_changed_processing(self):   
@@ -384,12 +317,15 @@ class HoloGUI(CAS_GUI):
         processor to process the images as required.        
         """
         
-
         # Match depth slider to depth numeric input        
         self.holoDepthSlider.setValue(int(self.holoDepthInput.value()))
+        self.holoLongDepthSlider.setValue(int(self.holoDepthInput.value()))
+
 
         # The max value of the slider is controlled by a numeric
         self.holoDepthSlider.setMaximum(int(self.holoSliderMaxInput.value()))
+        self.holoLongDepthSlider.setMaximum(int(self.holoSliderMaxInput.value()))
+        self.holoLongDepthSlider.setTickInterval(int(self.holoSliderMaxInput.value() / 100))
 
 
         # Everything else is only possible if we have an image processor
@@ -409,6 +345,19 @@ class HoloGUI(CAS_GUI):
             else:
                 self.imageProcessor.holo.set_normalise(None)
                 
+            
+            if self.holoShowPhaseCheck.isChecked():
+                self.imageProcessor.showPhase = True
+                self.mainDisplay.set_colormap('hsv')
+                if self.mainDisplay.roi is not None:
+                    self.imageProcessor.roi = pyholoscope.Roi(*self.mainDisplay.roi)
+                else:
+                    self.imageProcessor.roi = None
+            else:
+                self.imageProcessor.showPhase = False
+                self.imageProcessor.invert = self.holoInvertCheck.isChecked()
+                self.mainDisplay.set_colormap('gray')
+
             
             # Remaining options are only relevant if we refocus    
             if self.holoRefocusCheck.isChecked():
@@ -443,7 +392,10 @@ class HoloGUI(CAS_GUI):
         self.update_file_processing()
         
    
+    
     def handle_change_show_processing_options(self, event):
+        """ Handles toggle of checkbox to show detailed processing options.
+        """
         if self.showProcessingOptionsCheck.isChecked():
             self.holoPanel.show()
         else:  
@@ -451,9 +403,11 @@ class HoloGUI(CAS_GUI):
             
     
     def auto_focus_click(self):
+        """ Handles auto focus click.
+        """
      
         if self.mainDisplay.roi is not None:
-            roi = PyHoloscope.roi(self.mainDisplay.roi[0], self.mainDisplay.roi[1], self.mainDisplay.roi[2] - self.mainDisplay.roi[0], self.mainDisplay.roi[3] - self.mainDisplay.roi[1])
+            roi = pyholoscope.Roi(self.mainDisplay.roi[0], self.mainDisplay.roi[1], self.mainDisplay.roi[2] - self.mainDisplay.roi[0], self.mainDisplay.roi[3] - self.mainDisplay.roi[1])
         else:
             roi = None
         autofocusMax = self.holoAutoFocusMaxInput.value() / 1000
@@ -471,6 +425,10 @@ class HoloGUI(CAS_GUI):
 
     def handle_depth_slider(self):
         self.holoDepthInput.setValue(int(self.holoDepthSlider.value()))
+        
+        
+    def handle_long_depth_slider(self):
+        self.holoDepthInput.setValue(int(self.holoLongDepthSlider.value()))    
 
      
     def apply_default_settings(self):
@@ -499,6 +457,9 @@ class HoloGUI(CAS_GUI):
         
         
 class ExportStackDialog(QDialog):
+    """ Dialog box that appears when export depth stack is clicked."
+    """
+    
     def __init__(self):
         super().__init__()
 
@@ -536,29 +497,6 @@ class ExportStackDialog(QDialog):
     
 if __name__ == '__main__':    
     app=QApplication(sys.argv)
-    app.setStyle("Fusion")
-    
-    # Now use a palette to switch to dark colors:
-    # Now use a palette to switch to dark colors:
-    palette = QPalette()
-    palette.setColor(QPalette.Window, QColor(53, 53, 53))
-    palette.setColor(QPalette.Window, QColor(0, 0, 0))
-
-    palette.setColor(QPalette.WindowText, Qt.white)
-    palette.setColor(QPalette.Base, QColor(55, 45, 45))
-    palette.setColor(QPalette.AlternateBase, QColor(53, 53, 53))
-    palette.setColor(QPalette.ToolTipBase, Qt.black)
-    palette.setColor(QPalette.ToolTipText, Qt.white)
-    palette.setColor(QPalette.Text, Qt.white)
-    palette.setColor(QPalette.Button, QColor(53, 53, 53))
-    palette.setColor(QPalette.Button, QColor(63, 63, 63))
-
-    palette.setColor(QPalette.ButtonText, Qt.white)
-    palette.setColor(QPalette.BrightText, Qt.red)
-    palette.setColor(QPalette.Link, QColor(42, 130, 218))
-    palette.setColor(QPalette.Highlight, QColor(42, 130, 218))
-    palette.setColor(QPalette.HighlightedText, Qt.black)
-    app.setPalette(palette)
        
     window=HoloGUI()
     window.show()
