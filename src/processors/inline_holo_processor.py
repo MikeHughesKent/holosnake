@@ -15,13 +15,13 @@ import sys
 import numpy as np
 import time
 
-from ImageProcessorThread import ImageProcessorThread
+from cas_gui.threads.image_processor_class import ImageProcessorClass
 
 import pyholoscope as pyh
 
 
 
-class InlineHoloProcessor(ImageProcessorThread):
+class InlineHoloProcessor(ImageProcessorClass):
     
     mask = None
     crop = None
@@ -34,13 +34,13 @@ class InlineHoloProcessor(ImageProcessorThread):
     showPhase = False
     roi = None
     
-    def __init__(self, inBufferSize, outBufferSize, **kwargs):
+    def __init__(self):
         
-        super().__init__(inBufferSize, outBufferSize, **kwargs)
+        super().__init__()
         self.holo = pyh.Holo(pyh.INLINE, 1, 1)
         
                 
-    def process_frame(self, inputFrame):
+    def process(self, inputFrame):
         """ This is called by parent class whenever a frame needs to be processed.
         """
         self.preProcessFrame = inputFrame
@@ -60,13 +60,7 @@ class InlineHoloProcessor(ImageProcessorThread):
             return outputFrame
         return inputFrame
 
-    def handle_flags(self):
-       
-        if self.autoFocusFlag:
-            self.autoFocusFlag = False
-            #t1 = time.perf_counter()
-            #print(self.holo.auto_focus(self.preProcessFrame, **self.autoFocusFlags))
-            #print(time.perf_counter() - t1)
+   
         
 
     def auto_focus(self, **kwargs):
@@ -75,6 +69,3 @@ class InlineHoloProcessor(ImageProcessorThread):
             return self.holo.auto_focus(self.preProcessFrame.astype('float32'), **kwargs)
             #self.autoFocusFlag = True
             #self.autoFocusFlags = kwargs
-        
-    def update_settings(self):
-        pass
