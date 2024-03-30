@@ -61,11 +61,11 @@ class InlineHoloProcessor(ImageProcessorClass):
         return inputFrame
 
    
-        
+    def set_depth(self, depth):
+        self.holo.set_depth(depth)
 
     def auto_focus(self, **kwargs):
         
         if self.preProcessFrame is not None:
             return self.holo.auto_focus(self.preProcessFrame.astype('float32'), **kwargs)
-            #self.autoFocusFlag = True
-            #self.autoFocusFlags = kwargs
+

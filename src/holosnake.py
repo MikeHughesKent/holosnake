@@ -2,17 +2,19 @@
 """
 HoloSnake : Inline Holographic Microscopy GUI
 
-This GUI is built on CAS-GUI which contains most of the functionality. This
+This GUI is built on CAS-GUI which contains most of the GUI functionality. This
 file sets up the specific aspects of the GUI needed for inline holography.
+Holographic reconsutruction, refocusing etc. is performed using the PyHoloscope
+package.
 
 @author: Mike Hughes, Applied Optics Group, University of Kent
 
 """
 
-
 import sys 
 from pathlib import Path
 
+# Paths to CAS and PyHoloscope
 sys.path.append(str(Path('../../cas/src')))
 sys.path.append(str(Path('../../pyholoscope/src')))
 
@@ -24,14 +26,12 @@ import matplotlib.pyplot as plt
 import logging
 import os
 
-
 from PyQt5 import QtGui, QtCore, QtWidgets
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import QIcon, QPalette, QColor, QImage, QPixmap, QPainter, QPen, QGuiApplication
 from PyQt5.QtGui import QPainter, QBrush, QPen
-
 
 from PIL import Image
 import cv2 as cv
@@ -47,22 +47,24 @@ class HoloGUI(CAS_GUI):
     
     AUTHOR = "AOG"
     APP_NAME = "InlineHoloGUI"
-    windowTitle = "Kent HoloSnake"
+    windowTitle = "HoloSnake"
     logoFilename = '../res/kent_logo_3.png'
     resPath = "..\\..\\cas\\res"
     processor = InlineHoloProcessor
+    cuda = True
+    multiCore = True
+    sharedMemory = True
+    sharedMemoryArraySize = (2048,2048)
+    rawImageBufferSize = 2
 
-    cuda = False
-    
     
     if cuda is True:
         try:
             import cupy
             
         except:
-            print("CUDA not found.")
+            print("CUDA not found, defaulting to CPU")
             cuda = False
-            
     
     
     def __init__(self,parent=None):
@@ -70,7 +72,6 @@ class HoloGUI(CAS_GUI):
         self.sourceFilename = r"..\tests\test_data\usaf1.tif"
 
         super(HoloGUI, self).__init__(parent)
-        
         self.exportStackDialog = ExportStackDialog()
         
      
@@ -115,6 +116,7 @@ class HoloGUI(CAS_GUI):
         return widget
     
 
+
     def create_focus_panel(self): 
     
         """ Create a long slider for focusing
@@ -144,13 +146,14 @@ class HoloGUI(CAS_GUI):
         self.longFocusWidgetLayout.addWidget(QLabel('Depth, \u03bcm'),alignment=QtCore.Qt.AlignHCenter)
         self.longFocusWidgetLayout.addWidget(self.holoDepthInput,alignment=QtCore.Qt.AlignHCenter)  
         self.longFocusWidget.setStyleSheet("QWidget{padding:0px; margin:0px;background-color:rgba(30, 30, 60, 255)}")
-        self.holoDepthInput.valueChanged[float].connect(self.processing_options_changed)
+        self.holoDepthInput.valueChanged[float].connect(self.focus_depth_changed)
         self.holoDepthInput.setStyleSheet("QDoubleSpinBox{padding: 5px; background-color: rgba(255, 255, 255, 255); color: black; font-size:9pt}")
         self.holoLongDepthSlider.valueChanged[int].connect(self.long_depth_slider_changed)       
         self.holoLongDepthSlider.setTickPosition(QSlider.TicksBelow)
         self.holoLongDepthSlider.setTickInterval(100)
         self.holoLongDepthSlider.setMaximum(5000)
         
+        # Stylesheets for Focus Panel
         file = "../res/holosnake_focus_slider.css"        
         with open(file,"r") as fh:
             self.holoLongDepthSlider.setStyleSheet(fh.read())
@@ -160,7 +163,7 @@ class HoloGUI(CAS_GUI):
     
 
     def add_settings(self, layout):     
-        """ Create the PyQt panel with holography options.
+        """ Adds Holography options to Settings Panel.
         """
         
         self.holoWavelengthInput = QDoubleSpinBox(objectName='holoWavelengthInput')
@@ -169,8 +172,7 @@ class HoloGUI(CAS_GUI):
         
         self.holoPixelSizeInput = QDoubleSpinBox(objectName='holoPixelSizeInput')
         self.holoPixelSizeInput.setMaximum(10**6)
-        self.holoPixelSizeInput.setMinimum(-10**6)
-        
+        self.holoPixelSizeInput.setMinimum(-10**6)        
             
         self.holoRefocusCheck = QCheckBox("Refocus", objectName='holoRefocusCheck')
         self.holoBackgroundCheck = QCheckBox("Background", objectName='holoBackgroundCheck')
@@ -262,9 +264,17 @@ class HoloGUI(CAS_GUI):
 
         return 
 
+    def focus_depth_changed(self):
+        
+        if self.imageProcessor is not None:
+        
+            self.imageProcessor.pipe_message("set_depth", self.holoDepthInput.value()/ 10**6 )
+            self.imageProcessor.get_processor().holo.set_depth(self.holoDepthInput.value()/ 10**6)
+        # Match depth slider to depth numeric input        
+        self.holoLongDepthSlider.setValue(int(self.holoDepthInput.value()))
+        self.update_file_processing()
 
-            
-    
+        
     def processing_options_changed(self):   
         """ When changes are made to processing options, set up the image
         processor to process the images as required.        
@@ -340,8 +350,11 @@ class HoloGUI(CAS_GUI):
             else:
                 self.imageProcessor.get_processor().refocus = False
 
+            # This is needed if using multicore processing to update the
+            # copy of the processor class on the other core
             self.imageProcessor.update_settings()        
         
+        # Needed if we are processing a file
         self.update_file_processing()
         
    
@@ -378,6 +391,7 @@ class HoloGUI(CAS_GUI):
     def calibration_menu_button_clicked(self):
         self.expanding_menu_clicked(self.calibrationMenuButton, self.calibrationPanel)
       
+    
     def depth_stack_clicked(self):
         """ Creates a depth stack over a specified range.
         """
