@@ -23,7 +23,6 @@ import numpy as np
 import math
 import pickle
 import matplotlib.pyplot as plt
-import logging
 import os
 
 from PyQt5 import QtGui, QtCore, QtWidgets
@@ -55,8 +54,7 @@ class HoloGUI(CAS_GUI):
     multiCore = True
     sharedMemory = True
     sharedMemoryArraySize = (2048,2048)
-    rawImageBufferSize = 2
-
+    rawImageBufferSize = 5
     
     if cuda is True:
         try:
@@ -156,11 +154,9 @@ class HoloGUI(CAS_GUI):
         # Stylesheets for Focus Panel
         file = "../res/holosnake_focus_slider.css"        
         with open(file,"r") as fh:
-            self.holoLongDepthSlider.setStyleSheet(fh.read())
-        
+            self.holoLongDepthSlider.setStyleSheet(fh.read())     
           
-        
-    
+            
 
     def add_settings(self, layout):     
         """ Adds Holography options to Settings Panel.
@@ -396,7 +392,7 @@ class HoloGUI(CAS_GUI):
         """ Creates a depth stack over a specified range.
         """
         
-        if self.imageProcessor is not None and self.imageProcessor.preProcessFrame is not None:
+        if self.imageProcessor is not None and self.currentImage is not None:
             if self.exportStackDialog.exec():
                 try:
                     filename = QFileDialog.getSaveFileName(self, 'Select filename to save to:', '', filter='*.tif')[0]
@@ -406,7 +402,7 @@ class HoloGUI(CAS_GUI):
                      depthRange = (self.exportStackDialog.depthStackMinDepthInput.value() / 1000, self.exportStackDialog.depthStackMaxDepthInput.value() / 1000)
                      nDepths = int(self.exportStackDialog.depthStackNumDepthsInput.value())
                      QApplication.setOverrideCursor(Qt.WaitCursor)
-                     depthStack = self.imageProcessor.holo.depth_stack(self.imageProcessor.preProcessFrame, depthRange, nDepths)
+                     depthStack = self.imageProcessor.get_processor().holo.depth_stack(self.currentImage, depthRange, nDepths)
                      QApplication.restoreOverrideCursor()
                      depthStack.write_intensity_to_tif(filename)
         else:

@@ -46,6 +46,7 @@ class InlineHoloProcessor(ImageProcessorClass):
         self.preProcessFrame = inputFrame
 
         if self.refocus == True and inputFrame is not None:
+            #return inputFrame
             outputFrame = self.holo.process(inputFrame)
 
             if outputFrame is not None:
