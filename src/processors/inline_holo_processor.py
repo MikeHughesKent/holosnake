@@ -19,6 +19,8 @@ from cas_gui.threads.image_processor_class import ImageProcessorClass
 
 import pyholoscope as pyh
 
+import matplotlib.pyplot as plt
+
 
 
 class InlineHoloProcessor(ImageProcessorClass):
@@ -33,11 +35,14 @@ class InlineHoloProcessor(ImageProcessorClass):
     invert = False
     showPhase = False
     roi = None
+    unwrap = False
+    removeTilt = False
+    DIC = False
     
     def __init__(self):
         
         super().__init__()
-        self.holo = pyh.Holo(pyh.INLINE, 1, 1)
+        self.holo = pyh.Holo(pyh.INLINE, 1, 1, cropCentre = (20,20), cropRadius = 10, relativePhase = True)
         
                 
     def process(self, inputFrame):
@@ -45,20 +50,35 @@ class InlineHoloProcessor(ImageProcessorClass):
         """
         self.preProcessFrame = inputFrame
 
-        if self.refocus == True and inputFrame is not None:
-            #return inputFrame
-            outputFrame = self.holo.process(inputFrame)
+        if inputFrame is None:
+            return None
 
-            if outputFrame is not None:
-                if self.showPhase is False:
-                    outputFrame = pyh.amplitude(outputFrame)
-                    if self.invert is True:
-                        outputFrame = np.max(outputFrame) - outputFrame
-                else:
-                    outputFrame = pyh.phase(pyh.relative_phase_self(outputFrame, self.roi)) / (2 * 3.14) * 255
-           
+        # If we are in inline mode and refocus is false we need to hack this 
+        # to return the input images as PyHoloscope has not option to do
+        # inline holography without refocusing
+        if self.holo.mode == pyh.INLINE and not self.refocus:
+            return inputFrame
 
+        outputFrame = self.holo.process(inputFrame)
+
+
+        if outputFrame is not None:
+            if self.showPhase is False:
+                outputFrame = pyh.amplitude(outputFrame)
+                if self.invert is True:
+                    outputFrame = np.max(outputFrame) - outputFrame
+            else:
+                outputFrame = pyh.phase(outputFrame) 
+                if self.unwrap:
+                    print("unwrap")
+                    outputFrame = pyh.phase_unwrap(outputFrame)
+                if self.removeTilt and self.tiltMap is not None:
+                    if np.shape(self.tiltMap) == np.shape(outputFrame):
+                        outputFrame = outputFrame - self.tiltMap
+                if self.DIC:
+                    outputFrame = pyh.synthetic_DIC(outputFrame)
             return outputFrame
+        
         return inputFrame
 
    

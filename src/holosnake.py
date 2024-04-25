@@ -82,10 +82,16 @@ class HoloGUI(CAS_GUI):
         
         # Create the additional menu buttons needed 
         self.calibrationMenuButton = self.create_menu_button("Calibration", QIcon(os.path.join(self.resPath, 'icons', 'grid_white.svg')), self.calibration_menu_button_clicked, True, True, 6)
+        self.phaseMenuButton = self.create_menu_button("Phase", QIcon(os.path.join(self.resPath, 'icons', 'grid_white.svg')), self.phase_menu_button_clicked, True, True, 6)
+        self.autofocusMenuButton = self.create_menu_button("Auto Focus", QIcon(os.path.join(self.resPath, 'icons', 'grid_white.svg')), self.autofocus_menu_button_clicked, True, True, 6)
+
         self.stackButton = self.create_menu_button("Depth Stack", QIcon('../res/icons/copy_white.svg'), self.depth_stack_clicked, False, False, 5)
 
         # Create the additional menu panels needed for HoloBundle
         self.calibrationPanel = self.create_calibration_panel()
+        self.phasePanel = self.create_phase_panel()
+        self.autofocusPanel = self.create_autofocus_panel()
+
                
         # Create the long depth slider
         self.create_focus_panel()
@@ -109,6 +115,77 @@ class HoloGUI(CAS_GUI):
         layout.addWidget(self.mainMenuSaveBackBtn)
         self.mainMenuSaveBackBtn.clicked.connect(self.save_background_clicked)
         
+        self.holoCalibrateOffAxisBtn = QPushButton('Calibrate Off Axis')
+        layout.addWidget(self.holoCalibrateOffAxisBtn)
+        self.holoCalibrateOffAxisBtn.clicked.connect(self.calibrate_off_axis_clicked)
+        
+        layout.addStretch()
+        
+        return widget
+    
+    def create_autofocus_panel(self):
+        """ Create the panel with calibration options"""   
+        
+        widget, layout = self.panel_helper(title = "Auto Focus")  
+        
+        self.holoAutoFocusMinInput = QDoubleSpinBox(objectName='holoAutoFocusMinInput')
+        self.holoAutoFocusMinInput.setMaximum(10**6)
+        self.holoAutoFocusMinInput.setMinimum(-10**6)
+        
+        self.holoAutoFocusMaxInput = QDoubleSpinBox(objectName='holoAutoFocusMaxInput')
+        self.holoAutoFocusMaxInput.setMaximum(10**6)
+        self.holoAutoFocusMaxInput.setMinimum(-10**6)        
+        
+        self.holoAutoFocusCoarseDivisionsInput = QDoubleSpinBox(objectName='holoAutoFocusCoarseDivisionsInput')
+        self.holoAutoFocusCoarseDivisionsInput.setMaximum(10**6)
+        self.holoAutoFocusCoarseDivisionsInput.setMinimum(0)
+        
+        self.holoAutoFocusROIMarginInput = QDoubleSpinBox(objectName='holoAutoFocusROIMarginInput')
+        self.holoAutoFocusROIMarginInput.setMaximum(10**6)
+        self.holoAutoFocusROIMarginInput.setMinimum(0)
+        
+        layout.addWidget(QLabel("Autofocus Min (microns):"))
+        layout.addWidget(self.holoAutoFocusMinInput) 
+        
+        layout.addWidget(QLabel("Autofocus Max (microns):"))
+        layout.addWidget(self.holoAutoFocusMaxInput)
+        
+        layout.addWidget(QLabel("Autofocus Coarse Intervals:"))
+        layout.addWidget(self.holoAutoFocusCoarseDivisionsInput)
+        
+        layout.addWidget(QLabel("Autofocus ROI Margin (px):"))
+        layout.addWidget(self.holoAutoFocusROIMarginInput)
+        
+        layout.addStretch()
+        
+        return widget
+    
+    def create_phase_panel(self):
+        """ Create the panel with calibration options"""   
+        
+        widget, layout = self.panel_helper(title = "Phase") 
+        
+        self.holoRelativePhaseCheck = QCheckBox("Relative Phase")
+        layout.addWidget(self.holoRelativePhaseCheck)
+        self.holoRelativePhaseCheck.stateChanged.connect(self.processing_options_changed)
+        
+        self.holoUnWrapPhaseCheck = QCheckBox("Unwrap Phase")
+        layout.addWidget(self.holoUnWrapPhaseCheck)
+        self.holoUnWrapPhaseCheck.stateChanged.connect(self.processing_options_changed)
+        
+        self.holoRemoveTiltCheck = QCheckBox("Remove Tilt")
+        layout.addWidget(self.holoRemoveTiltCheck)
+        self.holoRemoveTiltCheck.stateChanged.connect(self.processing_options_changed)
+        
+        self.holoDetectTiltBtn = QPushButton("Detect Tilt")
+        layout.addWidget(self.holoDetectTiltBtn)
+        self.holoUnWrapPhaseCheck.clicked.connect(self.detect_tilt_clicked)
+        
+        self.holoDICCheck = QCheckBox("Synthetic DIC")
+        layout.addWidget(self.holoDICCheck)
+        self.holoDICCheck.stateChanged.connect(self.processing_options_changed)
+        
+       
         layout.addStretch()
         
         return widget
@@ -162,6 +239,9 @@ class HoloGUI(CAS_GUI):
         """ Adds Holography options to Settings Panel.
         """
         
+        self.holoOffAxisCheck = QCheckBox("Off Axis Demodulation", objectName='holoOffAxisCheck')
+       
+        
         self.holoWavelengthInput = QDoubleSpinBox(objectName='holoWavelengthInput')
         self.holoWavelengthInput.setMaximum(10**6)
         self.holoWavelengthInput.setMinimum(-10**6)
@@ -183,31 +263,42 @@ class HoloGUI(CAS_GUI):
         self.holoWindowThicknessInput.setMaximum(10**6)
         self.holoWindowThicknessInput.setMinimum(-10**6)
         
-        self.holoAutoFocusMinInput = QDoubleSpinBox(objectName='holoAutoFocusMinInput')
-        self.holoAutoFocusMinInput.setMaximum(10**6)
-        self.holoAutoFocusMinInput.setMinimum(-10**6)
         
-        self.holoAutoFocusMaxInput = QDoubleSpinBox(objectName='holoAutoFocusManInput')
-        self.holoAutoFocusMaxInput.setMaximum(10**6)
-        self.holoAutoFocusMaxInput.setMinimum(-10**6)        
         
-        self.holoAutoFocusCoarseDivisionsInput = QDoubleSpinBox(objectName='holoAutoFocusCoarseDivisionsInput')
-        self.holoAutoFocusCoarseDivisionsInput.setMaximum(10**6)
-        self.holoAutoFocusCoarseDivisionsInput.setMinimum(0)
-        
-        self.holoAutoFocusROIMarginInput = QDoubleSpinBox(objectName='holoAutoFocusROIMarginInput')
-        self.holoAutoFocusROIMarginInput.setMaximum(10**6)
-        self.holoAutoFocusROIMarginInput.setMinimum(0)
-        
-        self.holoSliderMaxInput = QSpinBox(objectName='holoSliderMaxInput')
+        self.holoSliderMaxInput = QDoubleSpinBox(objectName='holoSliderMaxInput')        
         self.holoSliderMaxInput.setMaximum(10**6)
         self.holoSliderMaxInput.setMinimum(0)
         self.holoSliderMaxInput.setKeyboardTracking(False)
+        
+        self.holoSliderMinInput = QDoubleSpinBox(objectName='holoSliderMinInput')        
+        self.holoSliderMinInput.setMaximum(0)
+        self.holoSliderMinInput.setMinimum(-10**6)
+        self.holoSliderMinInput.setKeyboardTracking(False)
       
         self.holoDownsampleInput = QSpinBox(objectName='holoDownsampleInput')
         self.holoDownsampleInput.setMaximum(10)
         self.holoDownsampleInput.setMinimum(1)
-        self.holoDownsampleInput.setKeyboardTracking(False)        
+        self.holoDownsampleInput.setKeyboardTracking(False)     
+        
+        self.holoOffAxisCentreX = QSpinBox(objectName='holoOffAxisCentreX')
+        self.holoOffAxisCentreY = QSpinBox(objectName='holoOffAxisCentreY')
+        self.holoOffAxisRadiusX = QSpinBox(objectName='holoOffAxisRadiusX')
+        self.holoOffAxisRadiusY = QSpinBox(objectName='holoOffAxisRadiusY ')
+        
+        self.holoOffAxisCentreX.setMaximum(100000)
+        self.holoOffAxisCentreY.setMaximum(100000)
+        self.holoOffAxisRadiusX.setMaximum(100000)
+        self.holoOffAxisRadiusY.setMaximum(100000)
+        
+        self.holoOffAxisCentreX.setMinimum(1)
+        self.holoOffAxisCentreY.setMinimum(1)
+        self.holoOffAxisRadiusX.setMinimum(1)
+        self.holoOffAxisRadiusY.setMinimum(1)
+        
+        layout.addWidget(self.holoOffAxisCheck)
+        layout.addWidget(self.holoRefocusCheck)
+
+        
         
         layout.addWidget(QLabel('Wavelegnth (microns):'))
         layout.addWidget(self.holoWavelengthInput)
@@ -215,7 +306,6 @@ class HoloGUI(CAS_GUI):
         layout.addWidget(QLabel('Pixel Size (microns):'))
         layout.addWidget(self.holoPixelSizeInput)       
         
-        layout.addWidget(self.holoRefocusCheck)
         layout.addWidget(self.holoBackgroundCheck)
         layout.addWidget(self.holoNormaliseCheck)
         layout.addWidget(self.holoInvertCheck)
@@ -227,20 +317,24 @@ class HoloGUI(CAS_GUI):
         layout.addWidget(QLabel("Window Thickness (px):"))
         layout.addWidget(self.holoWindowThicknessInput) 
         
-        layout.addWidget(QLabel("Autofocus Min (microns):"))
-        layout.addWidget(self.holoAutoFocusMinInput) 
+                
+        layout.addWidget(QLabel("Off Axis Modulation Freq (X) (px):"))
+        layout.addWidget(self.holoOffAxisCentreX)
         
-        layout.addWidget(QLabel("Autofocus Max (microns):"))
-        layout.addWidget(self.holoAutoFocusMaxInput)
+        layout.addWidget(QLabel("Off Axis Modulation Freq (Y) (px):"))
+        layout.addWidget(self.holoOffAxisCentreY)
         
-        layout.addWidget(QLabel("Autofocus Coarse Intervals:"))
-        layout.addWidget(self.holoAutoFocusCoarseDivisionsInput)
+        layout.addWidget(QLabel("Off Axis Crop Radius (X) (px):"))
+        layout.addWidget(self.holoOffAxisRadiusX)
         
-        layout.addWidget(QLabel("Autofocus ROI Margin (px):"))
-        layout.addWidget(self.holoAutoFocusROIMarginInput)
+        layout.addWidget(QLabel("Off Axis Crop Radius (Y) (px):"))
+        layout.addWidget(self.holoOffAxisRadiusY)
         
         layout.addWidget(QLabel("Depth Slider Max (microns):"))
         layout.addWidget(self.holoSliderMaxInput)
+        
+        layout.addWidget(QLabel("Depth Slider Min (microns):"))
+        layout.addWidget(self.holoSliderMinInput)
 
         layout.addWidget(QLabel("Downsample Factor:"))
         layout.addWidget(self.holoDownsampleInput)
@@ -249,15 +343,23 @@ class HoloGUI(CAS_GUI):
         self.holoWavelengthInput.valueChanged[float].connect(self.processing_options_changed)
         self.holoPixelSizeInput.valueChanged[float].connect(self.processing_options_changed)
         self.holoRefocusCheck.stateChanged.connect(self.processing_options_changed)
+        self.holoOffAxisCheck.stateChanged.connect(self.processing_options_changed)
         self.holoBackgroundCheck.stateChanged.connect(self.processing_options_changed)
         self.holoNormaliseCheck.stateChanged.connect(self.processing_options_changed)
         self.holoShowPhaseCheck.stateChanged.connect(self.processing_options_changed)
         self.holoInvertCheck.stateChanged.connect(self.processing_options_changed)
         self.holoWindowThicknessInput.valueChanged[float].connect(self.processing_options_changed)
         self.holoWindowCombo.currentIndexChanged[int].connect(self.processing_options_changed)
-        self.holoSliderMaxInput.valueChanged[int].connect(self.processing_options_changed)
+        self.holoSliderMaxInput.valueChanged[float].connect(self.processing_options_changed)
+        self.holoSliderMinInput.valueChanged[float].connect(self.processing_options_changed)
+        
         self.holoDownsampleInput.valueChanged[int].connect(self.processing_options_changed)
 
+        self.holoOffAxisCentreX.valueChanged[int].connect(self.processing_options_changed)
+        self.holoOffAxisCentreY.valueChanged[int].connect(self.processing_options_changed)
+        self.holoOffAxisRadiusX.valueChanged[int].connect(self.processing_options_changed)
+        self.holoOffAxisRadiusY.valueChanged[int].connect(self.processing_options_changed)
+     
         return 
 
     def focus_depth_changed(self):
@@ -279,11 +381,10 @@ class HoloGUI(CAS_GUI):
         # Match depth slider to depth numeric input        
         self.holoLongDepthSlider.setValue(int(self.holoDepthInput.value()))
 
-
-        # The max value of the slider is controlled by a numeric
+        # The min/max value of the slider is controlled by a numeric
         self.holoLongDepthSlider.setMaximum(int(self.holoSliderMaxInput.value()))
-        self.holoLongDepthSlider.setTickInterval(int(self.holoSliderMaxInput.value() / 100))
-
+        self.holoLongDepthSlider.setMinimum(int(self.holoSliderMinInput.value()))
+        self.holoLongDepthSlider.setTickInterval(int(np.abs(self.holoSliderMaxInput.value() - self.holoSliderMaxInput.value()) / 100))
 
         # Everything else is only possible if we have an image processor
         if self.imageProcessor is not None:
@@ -291,6 +392,11 @@ class HoloGUI(CAS_GUI):
             self.imageProcessor.get_processor().holo.set_use_cuda(self.cuda) 
             
             self.imageProcessor.get_processor().holo.set_downsample(self.holoDownsampleInput.value())
+            
+            self.imageProcessor.get_processor().DIC = self.holoDICCheck.isChecked()
+            self.imageProcessor.get_processor().removeTilt = self.holoRemoveTiltCheck.isChecked()
+            self.imageProcessor.get_processor().unwrap = self.holoUnWrapPhaseCheck.isChecked()
+
             
             if self.holoBackgroundCheck.isChecked() and self.backgroundImage is not None:
                 self.imageProcessor.get_processor().holo.set_background(self.backgroundImage)
@@ -304,8 +410,9 @@ class HoloGUI(CAS_GUI):
                 
             
             if self.holoShowPhaseCheck.isChecked():
-                self.imageProcessor.showPhase = True
-                self.mainDisplay.set_colormap('hsv')
+                self.imageProcessor.get_processor().showPhase = True
+                self.imageProcessor.get_processor().holo.set_relative_phase(self.holoBackgroundCheck.isChecked())
+                self.mainDisplay.set_colormap('twilight')
                 if self.mainDisplay.roi is not None:
                     self.imageProcessor.get_processor().roi = pyholoscope.Roi(*self.mainDisplay.roi)
                 else:
@@ -315,18 +422,30 @@ class HoloGUI(CAS_GUI):
                 self.imageProcessor.get_processor().invert = self.holoInvertCheck.isChecked()
                 self.mainDisplay.set_colormap('gray')
 
+            if self.holoOffAxisCheck.isChecked():
+                self.imageProcessor.get_processor().holo.set_mode(pyholoscope.Holo.OFF_AXIS)
+                self.imageProcessor.get_processor().holo.set_crop_centre((self.holoOffAxisCentreX.value(),self.holoOffAxisCentreY.value()))
+                self.imageProcessor.get_processor().holo.set_crop_radius((self.holoOffAxisRadiusX.value(),self.holoOffAxisRadiusY.value()))
+
+            
+            
+            else:
+                self.imageProcessor.get_processor().holo.set_mode(pyholoscope.Holo.INLINE)
             
             # Remaining options are only relevant if we refocus    
             if self.holoRefocusCheck.isChecked():
                 
                 self.imageProcessor.get_processor().refocus = True
+                self.imageProcessor.get_processor().holo.set_refocus(True)
                 
                 if self.holoWavelengthInput.value() != self.imageProcessor.get_processor().holo.wavelength / 10**6:
-                    self.imageProcessor.get_processor().holo.set_wavelength(self.holoWavelengthInput.value()/ 10**6)
+                    if self.holoWavelengthInput.value() > 0:
+                        self.imageProcessor.get_processor().holo.set_wavelength(self.holoWavelengthInput.value()/ 10**6)
                 
                 targetPixelSize = self.holoPixelSizeInput.value() / 10**6                   
                 if targetPixelSize != self.imageProcessor.get_processor().holo.pixelSize:
-                    self.imageProcessor.get_processor().holo.set_pixel_size(targetPixelSize)
+                    if targetPixelSize > 0:
+                        self.imageProcessor.get_processor().holo.set_pixel_size(targetPixelSize)
                     
                 if self.holoDepthInput.value() != self.imageProcessor.get_processor().holo.depth / 10**6:
                     self.imageProcessor.get_processor().holo.set_depth(self.holoDepthInput.value()/ 10**6)
@@ -386,7 +505,36 @@ class HoloGUI(CAS_GUI):
       
     def calibration_menu_button_clicked(self):
         self.expanding_menu_clicked(self.calibrationMenuButton, self.calibrationPanel)
+    
+    def autofocus_menu_button_clicked(self):
+        self.expanding_menu_clicked(self.autofocusMenuButton, self.autofocusPanel)
       
+    def phase_menu_button_clicked(self):
+        self.expanding_menu_clicked(self.phaseMenuButton, self.phasePanel)
+           
+    
+    
+    def calibrate_off_axis_clicked(self):
+        
+        if self.imageProcessor is not None:
+            if self.backgroundImage is not None:
+                self.imageProcessor.get_processor().holo.calib_off_axis(self.backgroundImage)
+            elif self.currentImage is not None:
+                self.imageProcessor.get_processor().holo.calib_off_axis(self.currentImage)
+            else:
+                QMessageBox.about(self, "Error", "Hologram or background image required.")   
+                return
+            self.holoOffAxisCentreX.setValue(int(self.imageProcessor.get_processor().holo.cropCentre[0]))
+            self.holoOffAxisCentreY.setValue(int(self.imageProcessor.get_processor().holo.cropCentre[1]))
+            self.holoOffAxisRadiusX.setValue(int(self.imageProcessor.get_processor().holo.cropRadius[0]))
+            self.holoOffAxisRadiusY.setValue(int(self.imageProcessor.get_processor().holo.cropRadius[1]))
+            self.imageProcessor.update_settings()
+            self.update_file_processing()
+    
+    
+    def detect_tilt_clicked(self):
+        #pyholoscope.obtain_tilt
+        pass
     
     def depth_stack_clicked(self):
         """ Creates a depth stack over a specified range.
