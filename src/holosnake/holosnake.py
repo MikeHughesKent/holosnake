@@ -11,8 +11,6 @@ file sets up the specific aspects of the GUI needed for inline holography.
 Holographic reconsutruction, refocusing etc. is performed using the PyHoloscope
 package.
 
-@author: Mike Hughes, Applied Optics Group, University of Kent
-
 """
 
 import sys
@@ -49,7 +47,7 @@ from PIL import Image
 import cv2 as cv
 
 from cas_gui.base import CAS_GUI
-from processors.inline_holo_processor import InlineHoloProcessor
+from processors.holo_processor import HoloProcessor
 import pyholoscope
 
 
@@ -57,13 +55,16 @@ resPath = "../../../cas/res"
 
 
 class HoloGUI(CAS_GUI):
+    
     AUTHOR = "AOG"
     APP_NAME = "HoloSnake"
     windowTitle = "HoloSnake: The Holographic Microscopy GUI"
+    windowSize = (1400,900)
+    windowMinHeight = 900
     logoFilename = "../res/kent_logo_3.png"
     resPath = "../../../cas/res"
 
-    processor = InlineHoloProcessor
+    processor = HoloProcessor
     cuda = True
     multiCore = True
     sharedMemory = True
@@ -71,6 +72,7 @@ class HoloGUI(CAS_GUI):
     rawImageBufferSize = 5
     studyRoot = "../studies"
     studyPath = "../studies/default"
+    restoreMethod = 1
 
     if cuda is True:
         try:
@@ -95,8 +97,8 @@ class HoloGUI(CAS_GUI):
 
         # Create the additional menu buttons needed
         self.focusMenuButton = self.create_menu_button(
-            "Focus",
-            QIcon(os.path.join(self.resPath, "icons", "grid_white.svg")),
+            "Numerical Focusing",
+            QIcon("res/icons/disc_white.svg"),
             self.focus_menu_button_clicked,
             True,
             True,
@@ -104,7 +106,7 @@ class HoloGUI(CAS_GUI):
         )
         self.oaMenuButton = self.create_menu_button(
             "Off Axis Holography",
-            QIcon(os.path.join(self.resPath, "icons", "grid_white.svg")),
+            QIcon(os.path.join(self.resPath, "icons", "settings_white.svg")),
             self.oa_menu_button_clicked,
             True,
             True,
@@ -112,7 +114,7 @@ class HoloGUI(CAS_GUI):
         )
         self.phaseMenuButton = self.create_menu_button(
             "Phase",
-            QIcon(os.path.join(self.resPath, "icons", "grid_white.svg")),
+            QIcon(os.path.join(self.resPath, "icons", "eye_white.svg")),
             self.phase_menu_button_clicked,
             True,
             True,
@@ -120,20 +122,20 @@ class HoloGUI(CAS_GUI):
         )
         self.stackButton = self.create_menu_button(
             "Depth Stack",
-            QIcon("../res/icons/copy_white.svg"),
+            QIcon("res/icons/layers_white.svg"),
             self.depth_stack_clicked,
             False,
             False,
-            7,
+            11,
         )
         
         self.saveRawButton = self.create_menu_button(
             "Save Raw As",
-            QIcon("../res/icons/save_white.svg"),
+            QIcon(os.path.join(self.resPath, "icons", "save_white.svg")),
             self.save_raw_as_button_clicked,
             False,
             False,
-            7,
+            9,
         )
 
         # Create the additional menu panels needed
@@ -156,11 +158,6 @@ class HoloGUI(CAS_GUI):
         self.holoSourceDistanceSpin = QDoubleSpinBox(objectName="holoSourceDistanceSpin")
         self.holoSourceDistanceSpin.setMaximum(10**6)
         self.holoSourceDistanceSpin.setKeyboardTracking(False)
-
-        
-        
-        
-
 
         self.holoSliderMaxInput = QDoubleSpinBox(objectName="holoSliderMaxInput")
         self.holoSliderMaxInput.setMaximum(10**6)
@@ -408,7 +405,7 @@ class HoloGUI(CAS_GUI):
         )
         self.autoFocusButton = QPushButton("Auto")
         self.autoFocusButton.clicked.connect(self.auto_focus_clicked)
-        self.longFocusWidgetLayout.addWidget(self.autoFocusButton)
+       # self.longFocusWidgetLayout.addWidget(self.autoFocusButton)
         self.longFocusWidget.setStyleSheet(
             "QWidget{padding:0px; margin:0px;background-color:rgba(30, 30, 60, 255)}"
         )
@@ -784,7 +781,9 @@ class HoloGUI(CAS_GUI):
         self.holoDepthInput.setValue(int(self.holoLongDepthSlider.value()))
 
     def apply_default_settings(self):
-        pass
+        self.holoWavelengthInput.setValue(0.5)
+        self.holoWavelengthInput.setValue(0.5)
+        
 
     def calibration_menu_button_clicked(self):
         self.expanding_menu_clicked(self.calibrationMenuButton, self.calibrationPanel)

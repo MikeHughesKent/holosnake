@@ -3,19 +3,23 @@
 HoloSnake is a graphical user interface for holographic microscopy written in Python. It supports both inline and off-axis holography,
 and can be used for real-time reconstruction as well as analysis of saved holograms.
 
-It uses the [PyHoloscope](https://www.github.com/mikehugheskent/) package to process raw holograms and the [CAS](https://www.github.com/mikehugheskent/cas) for the GUI.
+It uses the [PyHoloscope](https://www.github.com/mikehugheskent/pyholoscope) package to process raw holograms and the [CAS](https://www.github.com/mikehugheskent/cas) for the GUI.
+
+It is currently under development with minimal documentation, but is fully functional.
 
 ## Installation
 
-Download the source from Github or install using::
+Pip install will be available soon, but for now it is necessary to do a manual install. 
 
-```bash
-pip install holosnake
-```
+Download the HoloSnake source as a ZIP from GitHub. You will also need to download [PyHoloscope](https://www.github.com/mikehugheskent/pyholoscope) and [CAS](https://www.github.com/mikehugheskent/cas). Alternatively, CAS can be pip installed using ``pip install cas-gui``.
+
+The ``PyHoloscope`` and ``HoloSnake`` folders must be in the same parent directory. (The CAS folder must also be in the same directory if downloading rather than pip installing). The PyHoloscope and HoloSnake folders should have those exact names, note that when downloading from GitHub they may have a 'main' attached to the name which should be removed.
+
+A list of dependences is in the ``requirements.txt`` file in the ``holoscope`` folder. You can run ``pip install -r requirements.txt`` to ensure you have all requirements. If you would like to use specific camera inputs you may need additional dependencies, see the [CAS](https://www.github.com/mikehugheskent/cas) documentation for details.
 
 ## Getting Started
 
-Launch the GUI by running ``holosnake.py``.
+Launch the GUI by running ``holosnake.py`` in the ``holosnake/src`` folder.
 
 ```bash
 python holosnake.py
@@ -27,7 +31,7 @@ In the GUI, select 'Image Source' on the left hand menu and in the 'Camera Sourc
 
 As this is an example image for inline holography, open the 'Off Axis Holography' menu on the left hand side and then ensure that 'Off Axis Demodulation' is toggled off.
 
-Go to the Settings Menu, and enter a wavelength of 0.63 microns and a pixel size of 1 micron. Drag the slider on the right hand side to adjust the focus. The paramecium should be in focus at approximately 12900 microns.
+Go to the 'Settings' Menu, and enter a wavelength of 0.63 microns and a pixel size of 1 micron. Drag the slider on the right hand side to adjust the focus. The paramecium should be in focus at approximately 12900 microns.
 
 To load the background, go to 'Settings' and click 'Load Background' and select ``inline_example_back.tif``. Subtraction of the background image is toggled using the 'Background (Inline)' option at the top of the Settings panel. The same background image can be used to normalise (flat-field) the hologram by toggling 'Normalise'. Toggle 'Invert' to invert the image.
 
@@ -41,7 +45,7 @@ To view the phase image, toggle 'Show Phase' on the Settings Menu. On the Phase 
 
 ### Live Camera Images
 
-To perform holographic reconstruction on live images, select
+To perform holographic reconstruction on live images, select a camera source in the 'Image Source' Menu and then select 'Live Imaging' on the Main Menu.
 
 
 
